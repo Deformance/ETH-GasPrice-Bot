@@ -15,52 +15,20 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const endpoint = "https://api.coinbase.com/v2/prices/eth-usd/spot"
-const shards = 6
+const endpoint = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
+const shards = 1
 
-func worker(id int, token string) {
-	discord, err := discordgo.New("Bot " + token)
-	if err != nil {
-		log.Fatalf("Error creating discord session: %v", err)
-	}
-
-	discord.ShardCount = shards
-	discord.ShardID = id
-
-	err = discord.Open()
-	if err != nil {
-		log.Fatalf("Error opening discord ws: %v", err)
-	}
-	defer discord.Close()
-
-	for {
-		res, err := getPrice()
-		if err != nil {
-			log.Printf("Error getting price for shard %d: %v \n", id, err)
-		} else {
-			fmt.Printf("WorkerId %v got %v \n", id, "$"+res)
-			err = discord.UpdateWatchStatus(0, "$"+res)
-			if err != nil {
-				log.Printf("Error updating discord status for shard %d: %v \n", id, err)
-			}
-		}
-		time.Sleep(30 * time.Second)
-	}
-
-}
-
-func main() {
-	fmt.Println("hello world 🌍👋")
-	token := getEnvOrDie("TOKEN")
-
-	wg := sync.WaitGroup{}
-
-	for shardId := 0; shardId < shards; shardId++ {
-		wg.Add(1)
-		go worker(shardId, token)
-	}
-
-	wg.Wait()
+type Response struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Result  struct {
+		LastBlock       string `json:"LastBlock"`
+		SafeGasPrice    string `json:"SafeGasPrice"`
+		ProposeGasPrice string `json:"ProposeGasPrice"`
+		FastGasPrice    string `json:"FastGasPrice"`
+		SuggestBaseFee  string `json:"suggestBaseFee"`
+		GasUsedRatio    string `json:"gasUsedRatio"`
+	} `json:"result"`
 }
 
 func getEnvOrDie(key string) string {
@@ -77,16 +45,8 @@ func getEnvOrDie(key string) string {
 	return value
 }
 
-type Response struct {
-	Data struct {
-		Base     string `json:"base"`
-		Currency string `json:"currency"`
-		Amount   string `json:"amount"`
-	} `json:"data"`
-}
-
-func getPrice() (string, error) {
-	res, err := http.Get(endpoint)
+func getPrices(api_key string) (string, error) {
+	res, err := http.Get(endpoint + api_key)
 
 	if res != nil {
 		defer res.Body.Close()
@@ -101,16 +61,75 @@ func getPrice() (string, error) {
 		return "", fmt.Errorf("failed to decode json: %v", err)
 	}
 
-	amount, err := strconv.ParseFloat(jsonPayload.Data.Amount, 64)
+	slow_amount, err := strconv.ParseFloat(jsonPayload.Result.SafeGasPrice, 64)
 	if err != nil {
-		return "", fmt.Errorf("invalid amount format: %v", err)
+		return "", fmt.Errorf("invalid slow amount format: %v", err)
 	}
 
-	return fmt.Sprintf("%.0f", amount), nil
+	mid_amount, err := strconv.ParseFloat(jsonPayload.Result.ProposeGasPrice, 64)
+	if err != nil {
+		return "", fmt.Errorf("invalid mid amount format: %v", err)
+	}
+
+	fast_amount, err := strconv.ParseFloat(jsonPayload.Result.FastGasPrice, 64)
+	if err != nil {
+		return "", fmt.Errorf("invalid fast amount format: %v", err)
+	}
+
+	slow_price := fmt.Sprintf("%.0f", slow_amount)
+	mid_price := fmt.Sprintf("%.0f", mid_amount)
+	fast_price := fmt.Sprintf("%.0f", fast_amount)
+	return "🚀 " + fast_price + " | 🐦 " + mid_price + " | 🐌 " + slow_price, err
 }
 
 func decodeJson[T any](r io.Reader) (T, error) {
 	var v T
 	err := json.NewDecoder(r).Decode(&v)
 	return v, err
+}
+
+func worker(id int, token string, api_key string) {
+	discord, err := discordgo.New("Bot " + token)
+	if err != nil {
+		log.Fatalf("Error creating Discord session: %v", err)
+	}
+
+	discord.ShardCount = shards
+	discord.ShardID = id
+
+	err = discord.Open()
+	if err != nil {
+		log.Fatalf("Error opening Discord ws: %v", err)
+	}
+	defer discord.Close()
+
+	for {
+		res, err := getPrices(api_key)
+		if err != nil {
+			log.Printf("Error getting gas price for shard %d: %v \n", id, err)
+		} else {
+			fmt.Printf("WorkerId %v got %v \n", id, res)
+			err = discord.UpdateWatchStatus(0, res)
+			if err != nil {
+				log.Printf("Error updating Discord status for shard %d: %v \n", id, err)
+			}
+		}
+		time.Sleep(30 * time.Second)
+	}
+
+}
+
+func main() {
+	fmt.Println("Hello world! 👋🌍")
+	token := getEnvOrDie("TOKEN")
+	api_key := getEnvOrDie("API_KEY")
+
+	wg := sync.WaitGroup{}
+
+	for shardId := 0; shardId < shards; shardId++ {
+		wg.Add(1)
+		go worker(shardId, token, api_key)
+	}
+
+	wg.Wait()
 }
