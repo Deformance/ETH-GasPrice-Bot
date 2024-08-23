@@ -48,8 +48,8 @@ importers:
 
 packages:
 
-  '@adobe/css-tools@4.2.0':
-    resolution: {integrity: sha512-E09FiIft46CmH5Qnjb0wsW54/YQd69LsxeKUOWawmws1XWvyFGURnAChH0mlr7YPFR1ofwvUQfcL0J3lMxXqPA==}
+  '@adobe/css-tools@4.4.0':
+    resolution: {integrity: sha512-Ff9+ksdQQB3rMncgqDK78uLznstjyfIf2Arnh22pW8kBpLs6rpKDwgnZT46hin5Hl1WzazzK64DOrhSwYpS7bQ==}
 
   '@babel/code-frame@7.21.4':
     resolution: {integrity: sha512-LYvhNKfwWSPpocw8GI7gpK2nq3HSDuEPC/uSYaALSJu9xjsalaaYFOq0Pwt5KmVqwEbZlDu81aLXwBOmD/Fv9g==}
@@ -1472,7 +1472,7 @@ packages:
 
 snapshots:
 
-  '@adobe/css-tools@4.2.0': {}
+  '@adobe/css-tools@4.4.0': {}
 
   '@babel/code-frame@7.21.4':
     dependencies:
@@ -1621,7 +1621,7 @@ snapshots:
 
   '@testing-library/jest-dom@5.16.5':
     dependencies:
-      '@adobe/css-tools': 4.2.0
+      '@adobe/css-tools': 4.4.0
       '@babel/runtime': 7.22.3
       '@types/testing-library__jest-dom': 5.14.6
       aria-query: 5.1.3
